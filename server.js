@@ -1,13 +1,36 @@
-const WebSocket = require('ws')
+const { createServer } = require("http");
+const { Server } = require("socket.io");
+const Chat = require('./src/model/chat');
+const mongoose = require('mongoose');
+const configs = { useUnifiedTopology: true, useNewUrlParser: true }
 
-const wss = new WebSocket.Server({ port: 8081 })
+const httpServer = createServer();
+const io = new Server(httpServer, {
+	cors: {
+		origin: '*'
+	}
+});
 
-wss.on('connection', function connection(ws) {
-	ws.on('message', function incoming(data, isBinary) {
-		wss.clients.forEach(function each(client) {
-			if (client !== ws && client.readyState === WebSocket.OPEN) {
-				client.send(data,{ binary: isBinary })
-			}
-		})
+
+io.on("connection", (socket) => {
+	socket.on('chat',async (events) => {
+		const { users, message } = events
+		if(users.length){
+			users?.map(user=>{
+				const {from, to} = user
+				io.sockets.emit(to, {message, user: from})
+			})
+		}
 	})
-})
+
+	socket.on('movement',(event)=>{
+		io.sockets.emit('movement',event)
+	})
+
+	socket.on('video',(event)=>{
+		// io.sockets.emit('movement',event)
+		console.log(event)
+	})
+});
+
+httpServer.listen(8081);
