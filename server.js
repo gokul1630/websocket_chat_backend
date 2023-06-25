@@ -10,7 +10,7 @@ const io = new Server(httpServer, {
 });
 
 const client = redis.createClient({
-	url:''
+	url: ''
 })
 
 client.on("error", (err) => console.log("Redis Client Error", err))
@@ -27,10 +27,10 @@ io.on("connection", async (socket) => {
 		}
 	})
 
-	socket.on('movement',async (moves) => {
+	socket.on('movement', async (moves) => {
 		const { player } = moves
 		io.sockets.emit('movement', moves)
-		await client.hset('movement', player, JSON.stringify(moves))
+		client.hset('movement', player, JSON.stringify(moves))
 	})
 
 	socket.on('peer-id', (event) => {
@@ -38,13 +38,19 @@ io.on("connection", async (socket) => {
 	})
 
 
-	socket.on('newUser', async (event) => {
-		await client.hset(`users`, event, event)
+	await socket.on('newUser', async (event) => {
+		await client.hset(`users`, socket.id, event)
 		await client.hgetall('users', (_, users) => {
-			Object.keys(users).forEach(user => {
-				io.sockets.emit('newUser', user)
+			Object.values(users ?? {}).forEach(async (user) => {
+				client.hget('movement', user, (_, e) => io.sockets.emit('newUser', {user,moves:JSON.parse(e)}))
 			})
 		})
+	})
+
+	socket.on('disconnect', async () => {
+		await client.hdel('movement', socket.id)
+		await client.hdel('users', socket.id)
+		io.sockets.emit('removeUser','')
 	})
 
 });
