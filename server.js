@@ -49,8 +49,8 @@ io.on("connection", async (socket) => {
 
 	socket.on('disconnect', async () => {
 		await client.hdel('movement', socket.id)
+		await client.hget('users', socket.id, (_,e)=>io.sockets.emit('removeUser', e))
 		await client.hdel('users', socket.id)
-		io.sockets.emit('removeUser','')
 	})
 
 });
